@@ -1,0 +1,100 @@
+pipeline {
+  agent any
+
+  options {
+    timestamps()
+    ansiColor('xterm')
+    disableConcurrentBuilds()
+  }
+
+  environment {
+    AWS_REGION = 'ap-south-1'
+    EKS_CLUSTER_NAME = 'devsecops-netflix-dev'
+    DOCKERHUB_IMAGE = 'jaipalreddyg/netflix-clone'
+    IMAGE_TAG = "${env.BUILD_NUMBER}-${env.GIT_COMMIT.take(7)}"
+    SONARQUBE_ENV = 'sonarqube'
+    KUBE_NAMESPACE = 'netflix'
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Install Dependencies') {
+      steps {
+        sh 'npm install'
+      }
+    }
+
+    stage('SonarQube Scan') {
+      steps {
+        withSonarQubeEnv("${SONARQUBE_ENV}") {
+          sh 'sonar-scanner -Dsonar.projectKey=netflix-clone -Dsonar.sources=. -Dsonar.exclusions=node_modules/**,coverage/**'
+        }
+      }
+    }
+
+    stage('OWASP Dependency Check') {
+      steps {
+        dependencyCheck additionalArguments: '--scan . --format HTML --format XML --out dependency-check-report', odcInstallation: 'dependency-check'
+        dependencyCheckPublisher pattern: 'dependency-check-report/dependency-check-report.xml'
+      }
+    }
+
+    stage('Trivy Filesystem Scan') {
+      steps {
+        sh 'trivy fs --exit-code 0 --severity HIGH,CRITICAL --format table .'
+      }
+    }
+
+    stage('Docker Build') {
+      steps {
+        sh 'docker build -t $DOCKERHUB_IMAGE:$IMAGE_TAG .'
+      }
+    }
+
+    stage('Trivy Image Scan') {
+      steps {
+        sh 'trivy image --exit-code 0 --severity HIGH,CRITICAL $DOCKERHUB_IMAGE:$IMAGE_TAG'
+      }
+    }
+
+    stage('Push To Docker Hub') {
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'dockerhub-jaipalreddyg', usernameVariable: 'DOCKERHUB_USERNAME', passwordVariable: 'DOCKERHUB_TOKEN')]) {
+          sh '''
+            echo "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+            docker push $DOCKERHUB_IMAGE:$IMAGE_TAG
+          '''
+        }
+      }
+    }
+
+    stage('Deploy To EKS') {
+      steps {
+        sh '''
+          aws eks update-kubeconfig --region $AWS_REGION --name $EKS_CLUSTER_NAME
+          kubectl apply -f k8s/namespace.yaml
+          kubectl -n $KUBE_NAMESPACE set image deployment/netflix-clone netflix-clone=$DOCKERHUB_IMAGE:$IMAGE_TAG --record || true
+          kubectl apply -f k8s/
+          kubectl -n $KUBE_NAMESPACE rollout status deployment/netflix-clone --timeout=180s
+        '''
+      }
+    }
+  }
+
+  post {
+    always {
+      archiveArtifacts artifacts: 'dependency-check-report/**', allowEmptyArchive: true
+      cleanWs()
+    }
+    failure {
+      mail to: 'REPLACE_WITH_EMAIL',
+           subject: "FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+           body: "Build failed: ${env.BUILD_URL}"
+    }
+  }
+}

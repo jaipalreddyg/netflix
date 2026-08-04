@@ -1,0 +1,7 @@
+apiVersion: v2
+name: sample-app
+description: Production Helm chart for DevOps Project 06
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+

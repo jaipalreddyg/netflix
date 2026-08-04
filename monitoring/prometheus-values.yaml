@@ -1,0 +1,15 @@
+server:
+  persistentVolume:
+    enabled: true
+    size: 20Gi
+  service:
+    type: ClusterIP
+
+alertmanager:
+  enabled: true
+
+nodeExporter:
+  enabled: true
+
+kube-state-metrics:
+  enabled: true

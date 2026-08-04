@@ -1,0 +1,38 @@
+replicaCount: 3
+
+image:
+  repository: jaipalreddyg/sample-app
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  port: 80
+  targetPort: 8000
+
+ingress:
+  enabled: false
+  host: app.example.com
+  certificateArn: arn:aws:acm:ap-south-1:434779526479:certificate/REPLACE
+  scheme: internet-facing
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 12
+  targetCPUUtilizationPercentage: 65
+
+health:
+  path: /
+  initialDelaySeconds: 10
+
+podDisruptionBudget:
+  minAvailable: 2
+

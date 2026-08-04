@@ -1,0 +1,6 @@
+bucket         = "REPLACE_STATE_BUCKET"
+key            = "project06/prod/terraform.tfstate"
+region         = "REPLACE_REGION"
+dynamodb_table = "REPLACE_LOCK_TABLE"
+encrypt        = true
+
