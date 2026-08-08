@@ -86,4 +86,3 @@ pipeline {
     }
   }
 }
-'@ | Set-Content Jenkinsfile
