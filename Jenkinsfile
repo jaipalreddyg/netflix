@@ -34,7 +34,7 @@ pipeline {
 
     stage('Build and Unit Test') {
       steps {
-        sh 'docker run --rm -v "$WORKSPACE:/workspace" -w /workspace maven:3.9.10-eclipse-temurin-17 mvn -B -ntp clean verify'
+        sh 'docker run --rm --user "$(id -u):$(id -g)" -v "$WORKSPACE:/workspace" -w /workspace maven:3.9.10-eclipse-temurin-17 mvn -B -ntp clean verify'
       }
     }
 
@@ -61,10 +61,8 @@ pipeline {
       steps {
         sh '''
           aws eks update-kubeconfig --region "$AWS_REGION" --name "$CLUSTER_NAME"
-          kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
           helm upgrade --install "$HELM_RELEASE" helm/sample-app \
             --namespace "$NAMESPACE" \
-            --create-namespace \
             --values helm/sample-app/values-prod.yaml \
             --set image.repository="$DOCKERHUB_IMAGE" \
             --set image.tag="$IMAGE_TAG"
