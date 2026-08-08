@@ -1,4 +1,4 @@
-replicaCount: 3
+replicaCount: 1
 
 image:
   repository: jaipalreddyg/sample-app
@@ -17,16 +17,16 @@ ingress:
 
 resources:
   requests:
-    cpu: 250m
-    memory: 512Mi
+    cpu: 100m
+    memory: 256Mi
   limits:
-    cpu: "1"
-    memory: 1Gi
+    cpu: 500m
+    memory: 512Mi
 
 autoscaling:
-  enabled: true
-  minReplicas: 3
-  maxReplicas: 12
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 2
   targetCPUUtilizationPercentage: 65
 
 health:
@@ -34,5 +34,5 @@ health:
   initialDelaySeconds: 10
 
 podDisruptionBudget:
-  minAvailable: 2
+  minAvailable: 0
 
